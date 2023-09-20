@@ -1,19 +1,43 @@
 # Grovepi libraries ------------------------------------
-import time
+from datetime import datetime
 from grovepi import *
 from queue import Queue
 import threading
 from grove_rgb_lcd import *
-
+import uuid
+import json
 # RFID libraries
 import serial
+# Database libraries
+from google.cloud import firestore
+from google.oauth2 import service_account
+# ------------------------------------------------------
+
+
+# RFID ------------------------------------------------------------
 rpiser1 = serial.Serial('/dev/ttyS0',
                        baudrate=9600, timeout=1,
                        bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE,
                        xonxoff=False, rtscts=False, dsrdtr=False) #RPISER port
 rpiser1.flushInput()
 rpiser1.flushOutput()
+# -----------------------------------------------------------------
 
+# Device Information -----------------------------------
+mac_address = uuid.getnode()
+mac_address_hex = ':'.join(['{:02x}'.format((mac_address >> elements) & 0xff) for elements in range(0,8*6,8)][::-1])
+# ------------------------------------------------------
+
+
+# Connect to Firestore database ------------------------
+# Connect to firestore database by using JSON account key
+db = firestore.Client.from_service_account_json("firestore-key.json")
+
+# Lists out all the collection in the database (For user verification purposes)
+userList = [collection.id for collection in db.collections()]
+
+
+# ------------------------------------------------------
 
 # List of sensors ===================================
 dhtSensor = 7          # D7
@@ -38,40 +62,6 @@ pinMode(relayForPump, "OUTPUT")
 pinMode(relayForLight, "OUTPUT")
 # ------------------------------------------------------
 
-
-# Function for reading data (multithread) --------------
-def sensor_reading_loop(sensor_queue):
-    while True:
-        try:
-            # Read sensor data ========================
-            [temp, hum] = dht(dhtSensor, 0)
-            light = analogRead(lightSensor)
-            moisture = analogRead(moistureSensor)
-            distance = ultrasonicRead(ultrasonic)
-            
-            # Put sensor data into a dictionary key value pair and pass it into thread queue
-            sensor_data = {
-                "temperature": temp,
-                "humidity": hum,
-                "light_intensity": light,
-                "soil_moisture": moisture,
-                "distance": distance
-            }
-            
-            sensor_queue.put(sensor_data)
-            
-            time.sleep(1) # Read data every second (Modifiable)
-            # ========================================
-        # Exceptions =================================
-        except KeyboardInterrupt:
-            print("Sensor Reading Program Exited")
-            break
-        except TypeError:
-            print("Type Error occurs")
-        except IOError:
-            print("IO error occurs")
-        # ============================================
-# -----------------------------------------------------
 
 
 
@@ -201,17 +191,44 @@ def mainSys():
 
 # Main program ----------------------------------------------------------------------------
 if __name__ == "__main__":
-    # ===================================================
-    # Menu
-    # while True:
-    #     print("1. Register")
-    #     print("2. Login")
-    #     choice = input("Enter: ")
-        
-    #     if choice == "1":
-    #         register()
-    #     elif choice == "2":
-    #         login()
+    
+    username = input("Enter your registered username : ")
+
+    if len(username) == 0:
+        print("Username should not be EMPTY!")
+
+    elif username not in userList:
+        print("Username has not been registered")
+
+    else:
+        # Move cursor to under username > MAC address
+        post_ref = db.collection(username).document(mac_address_hex)
+
+        # Default settings
+        post_ref.set({
+            'currPlant': 1,
+            'distance': 30,
+            'humidity': 10,
+            'lightIntensity': 60,
+            'moisture': 10,
+            'pH': 7,
+            'temperature': 28
+        })
+
+        # Add data into username > MAC > data > (data > actual data)
+        now = datetime.now()
+        curr = now.strftime("%d-%m-%Y %H:%M:%S")
+        data_ref = post_ref.collection(data).document(curr)
+
+        data_ref.set({
+            'distance': 30,
+            'humidity': 10,
+            'lightIntensity': 60,
+            'moisture': 10,
+            'pH': 7,
+            'temperature': 28
+        })
+
         mainSys()
             
             
