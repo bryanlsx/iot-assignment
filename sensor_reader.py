@@ -63,93 +63,92 @@ pinMode(relayForLight, "OUTPUT")
 
 
 
-
-# Reg Function -------------- 
-def register():
-    cont = "b''"
-    print("Place your tag")
-    # store in secret and gone after 10s
-    while(cont == "b''"):
-        # read rfid value
-        register_iden = str(rpiser1.read(14))
-        if str(register_iden) != cont:
-            print(register_iden)
-            print("Boleh Masuk")
-            time.sleep(10)
-            
-            #Clear secret
-            register_iden = "b''"
-            print(register_iden)
-
-# Login Function --------------          
-def login():
-    print("Login")
-    login_iden = str(rpiser1.read(14))
-
-    #Webapp
-    #Work with webapp to match with username
-    #Login if match
-
-    while(login_iden == "b''"):
-        login_iden = str(rpiser1.read(14))
-        if login_iden == str(b'\x022300A4F1EB9D\x03'):
-            print("successfully login")
-            mainSys()
-            
     
 # tempHum Function --------------   
-def tempHum(temp, hum, moist, light):
+def tempHum(temp, hum, moist, light, username):
     # get threshold from firestore
-    threshold = 20
-    
-    if ((temp >= threshold) and (hum >= threshold)):
-        print("Turn on")
+    threshold_dict = threshold_read(username)
+    temp_threshold = threshold_dict['temperature']
+    hum_threshold = threshold_dict['humidity']
+
+
+    # check if the temperature and humidity exceed threshold value
+    # yes -> light module, no -> soilMoisture module
+    if ((temp >= temp_threshold) and (hum >= hum_threshold)):
+        print("Exceed threshold value")
         #To alert user that the threshold has been hit for the plant
-        digitalWrite(led_threshold, 0)
-        #Run lightIntensity Module
-        lightIntensity(light)
-    else:
-        print("Turn off")
-        #Off lights, haven't cross threshold
         digitalWrite(led_threshold, 1)
-        #Run soilMoisture Module
-        soilMoist(moist)
+        #Run lightIntensity Module
+        high = lightIntensity(light, username)
         
+        if high == True:
+            # On heater
+            print("Heater has been turned on")
+            digitalWrite(led_actuators, 1)
+        else:
+            # On humidifier   
+            print("Humidifier has been turned on")
+            digitalWrite(led_actuators, 1)
+    else:
+        print("Under threshold value")
+        #Off lights, haven't cross threshold
+        digitalWrite(led_threshold, 0)
+        #Run soilMoisture Module
+        soilMoist(moist, username)
+        
+
 # soilMoist Function --------------    
-def soilMoist(moisture):
-    #Example only, will need to get from Firebase
-    threshold = 5
+def soilMoist(moisture, username):
+    # get threshold from firestore
+    threshold_dict = threshold_read(username)
+    moisture_threshold = threshold_dict['moisture']
     
-    if moisture != threshold:
+    if moisture < moisture_threshold:
         print("Low moisture")
-        waterLevel()
         #Tell user that there's low moisture level in soil
         digitalWrite(led_threshold, 1)
+        waterLevel()
     else:
         print("Enough moisture")
-        
-# lightIntensity Function -------------- 
-def lightIntensity(light):
-    threshold = 300
-    if light >= threshold:
-        print("High Light Intensity Detected!!")
-        #turn off light bulb
         digitalWrite(led_threshold, 0)
-        #turn on light shade
-        #code for an actuator
+    
+        
+
+
+# lightIntensity Function -------------- 
+def lightIntensity(light, username):
+
+    # get threshold from firestore
+    threshold_dict = threshold_read(username)
+    light_threshold = threshold_dict['light']
+
+
+    # check if light exceed threshold value
+    # yes > turn on relay(light shade), no > turn on led(light bulb)
+    if light >= light_threshold:
+        print("High Light Intensity Detected!!")
+        # light bulb off, light shade on
+        digitalWrite(led_actuators, 0)
+        digitalWrite(relayForLight,1)
+        return True
     else:
         print("Low Light Intensity Detected!!")
-        #Turn on light bulb
-        digitalWrite(led_threshold, 1)
+        # light bulb on, light shade off
+        digitalWrite(led_actuators, 1)
+        digitalWrite(relayForLight,0)
+        return False
     
+
+
 # waterLevel Function --------------         
 def waterLevel():
     waterlvl = digitalRead(water_sensor)
+
     # if water level < 10, turn off relay(water pump) & light up led
-    # waterSensor, 0 = got, 1 = no have
+    # waterSensor, 0 = got water, 1 = no water
     if (waterlvl == 1):
         print("low water level, please refill water")
-        #off signifies that the water is sufficient
+        # led on signifies that the water is insufficient
         digitalWrite(led_threshold, 1)
         digitalWrite(relay,0)
     else:
@@ -160,17 +159,29 @@ def waterLevel():
     time.sleep(1)
 
 
+
+# read threshold from database function ----------------
+def threshold_read(username):
+    return db.collection(username).document(mac_address_hex).get().to_dict()
+
+
 # Main System to run Function?? --------------     
 # Might be replaced by sensor reading loop? --------------      
-def mainSys():
+def mainSys(username):
     cont = True
-    digitalWrite(led_threshold, 1)
     while cont:
+        # Get current datetime
+        now = datetime.now()
+        curr = now.strftime("%d-%m-%Y %H:%M:%S")
+
+        # read rfid value
+        register_iden = str(rpiser1.read(14))
+
          # read value(temp,humidty) from dhtsensor
         [temp, hum] = dht(dhtSensor, 0)
         light = analogRead(lightSensor)
         moist = analogRead(moistureSensor)
-        print("Temp = %.2f, hum = %.2f, light = %d, moisture = %d" %(temp, hum, light,moist))
+        print("Temp = %.2f, hum = %.2f, light = %d, moisture = %d" %(temp, hum, light, moist))
         
         # convert to string
         t = str(temp)
@@ -182,12 +193,30 @@ def mainSys():
         setRGB(0, 255, 0)
         setText("T=" + t + "\337" + "C   H=" +  h + "%" + "L=" + l + "  M=" + m)
         
+
+        # Store sensor values into database
+        db.collection(username).document(mac_address_hex).collection(curr).set({
+            'humidity': h,
+            'lightIntensity': l,
+            'moisture': m,
+            'temperature': t
+        })
+
+        if str(register_iden) != "b''":
+            print(register_iden)
+
+            # Store rfid value into database
+            db.collection('currentUser').collection('curr').update({'rfid': register_iden})
+            time.sleep(10)
+            
+            #Clear secret
+            register_iden = "b''"
+            print(register_iden)
         
-        # store temp, hum, light and moist into firestore
-        
+
         # call temperature and humidity module
-        tempHum(temp,hum, moist, light)
-        
+        tempHum(temp, hum, moist, light, username)
+        time.sleep(60)
         # ============================================
 # -----------------------------------------------------
 
@@ -232,7 +261,7 @@ if __name__ == "__main__":
             'temperature': 28
         })
 
-        mainSys()
+        mainSys(username)
             
             
             
@@ -270,3 +299,45 @@ while True:
 
 
 # ----------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+# # Rfid Function -------------- 
+# def read_rfid():
+#     cont = "b''"
+#     print("Place your tag")
+#     # store in secret and gone after 10s
+#     while(cont == "b''"):
+#         # read rfid value
+#         register_iden = str(rpiser1.read(14))
+#         if str(register_iden) != cont:
+#             print(register_iden)
+
+#             # Store rfid value into database
+#             db.collection('currentUser').collection('curr').update({'rfid': register_iden})
+#             time.sleep(10)
+            
+#             #Clear secret
+#             register_iden = "b''"
+#             print(register_iden)
+
+# # Login Function --------------          
+# def login():
+#     print("Login")
+#     login_iden = str(rpiser1.read(14))
+
+#     #Webapp
+#     #Work with webapp to match with username
+#     #Login if match
+
+#     while(login_iden == "b''"):
+#         login_iden = str(rpiser1.read(14))
+#         if login_iden == str(b'\x022300A4F1EB9D\x03'):
+#             print("successfully login")
+#             mainSys()
+            
