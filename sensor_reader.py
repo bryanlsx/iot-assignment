@@ -6,6 +6,7 @@ import threading
 from grove_rgb_lcd import *
 import uuid
 import json
+import time
 # RFID libraries
 import serial
 # Database libraries
@@ -44,20 +45,18 @@ dhtSensor = 7          # D7
 lightSensor = 15       # A1
 moistureSensor = 16    # A2
 water_sensor = 2       # D2
-led_light = 8          # D8
-led_temp = 5           # D5
-led_hum = 6            # D6
-led_pump = 3           # D3
+led_threshold = 5      # D5
+led_actuators = 6      # D6
 relayForPump = 14      # A0
 relayForLight = 4      # D4
+
 
 pinMode(lightSensor, "INPUT")
 pinMode(dhtSensor, "INPUT")
 pinMode(moistureSensor, "INPUT")
-pinMode(led_light, "OUTPUT")
-pinMode(led_temp, "OUTPUT")
-pinMode(led_hum, "OUTPUT")
-pinMode(led_pump, "OUTPUT")
+pinMode(water_sensor,"INPUT")
+pinMode(led_threshold, "OUTPUT")
+pinMode(led_actuators, "OUTPUT")
 pinMode(relayForPump, "OUTPUT")
 pinMode(relayForLight, "OUTPUT")
 # ------------------------------------------------------
@@ -71,11 +70,13 @@ def register():
     print("Place your tag")
     # store in secret and gone after 10s
     while(cont == "b''"):
+        # read rfid value
         register_iden = str(rpiser1.read(14))
         if str(register_iden) != cont:
             print(register_iden)
             print("Boleh Masuk")
             time.sleep(10)
+            
             #Clear secret
             register_iden = "b''"
             print(register_iden)
@@ -104,13 +105,13 @@ def tempHum(temp, hum, moist, light):
     if ((temp >= threshold) and (hum >= threshold)):
         print("Turn on")
         #To alert user that the threshold has been hit for the plant
-        digitalWrite(led_pump, 0)
+        digitalWrite(led_threshold, 0)
         #Run lightIntensity Module
         lightIntensity(light)
     else:
         print("Turn off")
         #Off lights, haven't cross threshold
-        digitalWrite(led_pump, 1)
+        digitalWrite(led_threshold, 1)
         #Run soilMoisture Module
         soilMoist(moist)
         
@@ -123,7 +124,7 @@ def soilMoist(moisture):
         print("Low moisture")
         waterLevel()
         #Tell user that there's low moisture level in soil
-        digitalWrite(led_pump, 1)
+        digitalWrite(led_threshold, 1)
     else:
         print("Enough moisture")
         
@@ -133,35 +134,37 @@ def lightIntensity(light):
     if light >= threshold:
         print("High Light Intensity Detected!!")
         #turn off light bulb
-        digitalWrite(led_pump, 0)
+        digitalWrite(led_threshold, 0)
         #turn on light shade
         #code for an actuator
     else:
         print("Low Light Intensity Detected!!")
         #Turn on light bulb
-        digitalWrite(led_pump, 1)
+        digitalWrite(led_threshold, 1)
     
 # waterLevel Function --------------         
 def waterLevel():
-    waterlvl = grovepi.digitalRead(water_sensor)
+    waterlvl = digitalRead(water_sensor)
     # if water level < 10, turn off relay(water pump) & light up led
     # waterSensor, 0 = got, 1 = no have
     if (waterlvl == 1):
         print("low water level, please refill water")
         #off signifies that the water is sufficient
-        digitalWrite(led_pump, 1)
+        digitalWrite(led_threshold, 1)
+        digitalWrite(relay,0)
     else:
         #show that enough water to run pump
-        digitalWrite(led_pump, 0)
+        digitalWrite(led_threshold, 0)
         #open relay for water pump
-        grovepi.digitalWrite(relay,1)
+        digitalWrite(relay,1)
     time.sleep(1)
+
 
 # Main System to run Function?? --------------     
 # Might be replaced by sensor reading loop? --------------      
 def mainSys():
     cont = True
-    digitalWrite(led_pump, 1)
+    digitalWrite(led_threshold, 1)
     while cont:
          # read value(temp,humidty) from dhtsensor
         [temp, hum] = dht(dhtSensor, 0)
@@ -236,8 +239,8 @@ if __name__ == "__main__":
 # ----------------------------------------------------------------------------------
 #JUZ EXAMPLE
 #Run relay and water sensor
-import time
-import grovepi                                    
+
+                                  
 
 
 # Connect the Grove Water Sensor to digital port D2
@@ -245,22 +248,22 @@ import grovepi
 water_sensor = 2
 led = 3
 relay = 14
-grovepi.pinMode(water_sensor,"INPUT")
-grovepi.pinMode(led, "OUTPUT")
-grovepi.pinMode(relay, "OUTPUT")
+pinMode(water_sensor,"INPUT")
+pinMode(led, "OUTPUT")
+pinMode(relay, "OUTPUT")
 
 while True:
     try:
         time.sleep(0.1)
-        waterlvl10 = grovepi.digitalRead(water_sensor)
+        waterlvl10 = digitalRead(water_sensor)
         
         # if water level < 10, turn off relay(water pump) & light up led
         if (waterlvl10 == 1):
             print("low water level, please refill water")
-            grovepi.digitalWrite(relay,1)
-            grovepi.digitalWrite(led, 0)
+            digitalWrite(relay,1)
+            digitalWrite(led, 0)
         else:
-            grovepi.digitalWrite(relay,0)
+            digitalWrite(relay,0)
         time.sleep(1)
     except IOError:
         print("Error")
