@@ -7,6 +7,7 @@ from grove_rgb_lcd import *
 import uuid
 import json
 import time
+import math
 # RFID libraries
 import serial
 # Database libraries
@@ -171,6 +172,13 @@ def mainSys(username):
 
          # read value(temp,humidty) from dhtsensor
         [temp, hum] = dht(dhtSensor, 0)
+        
+        # Check for nan and replace with 0
+        if math.isnan(temp):
+            temp = 0.0
+        if math.isnan(hum):
+            hum = 0.0
+            
         light = analogRead(lightSensor)
         moist = analogRead(moistureSensor)
         print("Temp = %.2f, hum = %.2f, light = %d, moisture = %d" %(temp, hum, light, moist))
