@@ -213,7 +213,13 @@ def waterLevel():
         grovepi.digitalWrite(buzzer,0)
     time.sleep(1)
 
-
+# Function to deactivate all actuators
+def deactivate_actuators():
+    digitalWrite(led_actuators, 0)
+    digitalWrite(relayForPump, 0)
+    digitalWrite(relayForLight, 0)
+    digitalWrite(buzzer, 0)
+    digitalWrite(led_threshold, 0)
 
 # read threshold from database function ----------------
 def threshold_read(username):
@@ -288,6 +294,10 @@ def mainSys(username):
         # call temperature and humidity module
         tempHum(temp, hum, moist, light, username)
         time.sleep(60)
+
+        #put actuators and leds in a reset state before running loop again
+        deactivate_actuators()
+        time.sleep(5)
         # ============================================
 # -----------------------------------------------------
 
