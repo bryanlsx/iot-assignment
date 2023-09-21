@@ -72,29 +72,22 @@ def tempHum(temp, hum, moist, light, username):
     hum_threshold = threshold_dict['humidity']
 
 
-    # check if the temperature and humidity exceed threshold value
-    # yes -> light module, no -> soilMoisture module
-    if ((temp >= temp_threshold) and (hum >= hum_threshold)):
-        print("Exceed threshold value")
+    if ((temp >= temp_threshold) and (hum <= hum_threshold)):
+        print("Air become drier")
         #To alert user that the threshold has been hit for the plant
         digitalWrite(led_threshold, 1)
+
+        #Run soilMoisture Module
+        soilMoist(moist, username)
+
+    else:
+        print("Air become wet")
+        #Off lights, haven't cross threshold
+        digitalWrite(led_threshold, 0)
+
         #Run lightIntensity Module
         high = lightIntensity(light, username)
         
-        if high == True:
-            # On heater
-            print("Heater has been turned on")
-            digitalWrite(led_actuators, 1)
-        else:
-            # On humidifier   
-            print("Humidifier has been turned on")
-            digitalWrite(led_actuators, 1)
-    else:
-        print("Under threshold value")
-        #Off lights, haven't cross threshold
-        digitalWrite(led_threshold, 0)
-        #Run soilMoisture Module
-        soilMoist(moist, username)
         
 
 # soilMoist Function --------------    
@@ -130,13 +123,12 @@ def lightIntensity(light, username):
         # light bulb off, light shade on
         digitalWrite(led_actuators, 0)
         digitalWrite(relayForLight,1)
-        return True
     else:
         print("Low Light Intensity Detected!!")
         # light bulb on, light shade off
         digitalWrite(led_actuators, 1)
         digitalWrite(relayForLight,0)
-        return False
+
     
 
 
