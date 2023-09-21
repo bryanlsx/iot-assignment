@@ -50,6 +50,7 @@ led_threshold = 5      # D5
 led_actuators = 6      # D6
 relayForPump = 14      # A0
 relayForLight = 4      # D4
+buzzer = 3             # D3 #TODO: test later
 #Add code here for button
 # kill_switch_butt = 
 
@@ -62,6 +63,8 @@ pinMode(led_threshold, "OUTPUT")
 pinMode(led_actuators, "OUTPUT")
 pinMode(relayForPump, "OUTPUT")
 pinMode(relayForLight, "OUTPUT")
+pinMode(buzzer, "OUTPUT")
+
 # pinMode(kill_switch_butt, "INPUT")
 # ------------------------------------------------------
 
@@ -80,6 +83,9 @@ def tempHum(temp, hum, moist, light, username):
         print("Air become drier")
         #To alert user that the threshold has been hit for the plant
         digitalWrite(led_threshold, 1)
+        # turn on humidifier
+        digitalWrite(led_actuators, 1)
+        print("Humidifier has been turned on!")
 
         #Run soilMoisture Module
         soilMoist(moist, username)
@@ -88,6 +94,9 @@ def tempHum(temp, hum, moist, light, username):
         print("Air become wet")
         #Off lights, haven't cross threshold
         digitalWrite(led_threshold, 0)
+        # turn on heater
+        digitalWrite(led_actuators, 1)
+        print("Heater has been turned on!")
 
         #Run lightIntensity Module
         high = lightIntensity(light, username)
@@ -122,16 +131,23 @@ def lightIntensity(light, username):
 
     # check if light exceed threshold value
     # yes > turn on relay(light shade), no > turn on led(light bulb)
+
     if light >= light_threshold:
         print("High Light Intensity Detected!!")
+        digitalWrite(led_threshold, 1)
+
         # light bulb off, light shade on
-        digitalWrite(led_actuators, 0)
+        digitalWrite(led_actuators, 1)
         digitalWrite(relayForLight,1)
+        print("Light shade has been turned on!")
     else:
         print("Low Light Intensity Detected!!")
-        # light bulb on, light shade off
+        digitalWrite(led_threshold, 0)
+
+         # # light bulb on, light shade off
         digitalWrite(led_actuators, 1)
         digitalWrite(relayForLight,0)
+        print("Light bulb has been turned on!")
 
     
 
@@ -146,12 +162,18 @@ def waterLevel():
         print("low water level, please refill water")
         # led on signifies that the water is insufficient
         digitalWrite(led_threshold, 1)
+        # close relay as insufficient water
         digitalWrite(relay,0)
     else:
         #show that enough water to run pump
         digitalWrite(led_threshold, 0)
         #open relay for water pump
         digitalWrite(relay,1)
+        # buzzer indicates watering plant
+        grovepi.digitalWrite(buzzer,1)
+        time.sleep(3)
+        grovepi.digitalWrite(buzzer,0)
+
     time.sleep(1)
 
 
