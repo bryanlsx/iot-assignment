@@ -51,9 +51,6 @@ led_actuators = 6      # D6
 relayForPump = 14      # A0
 relayForLight = 4      # D4
 buzzer = 3             # D3 #TODO: test later
-#Add code here for button
-# kill_switch_butt = 
-
 
 pinMode(lightSensor, "INPUT")
 pinMode(dhtSensor, "INPUT")
@@ -65,7 +62,11 @@ pinMode(relayForPump, "OUTPUT")
 pinMode(relayForLight, "OUTPUT")
 pinMode(buzzer, "OUTPUT")
 
-# pinMode(kill_switch_butt, "INPUT")
+# Initialize the two LCDs, we change later when test
+lcd1 = LCD(address=0x27, port=1)  # Replace with actual address and port
+lcd2 = LCD(address=0x3F, port=1)  # Replace with actual address and port
+
+
 # ------------------------------------------------------
 
 
@@ -80,24 +81,39 @@ def tempHum(temp, hum, moist, light, username):
 
 
     if ((temp >= temp_threshold) and (hum <= hum_threshold)):
-        print("Air become drier")
+        lcd2.setRGB(0, 255, 0)
+        lcd2.print("The air is dry")
         #To alert user that the threshold has been hit for the plant
         digitalWrite(led_threshold, 1)
+        time.sleep(1)
+        
+        lcd2.print("Temp exceeded limit!")
         # turn on humidifier
         digitalWrite(led_actuators, 1)
-        print("Humidifier has been turned on!")
-
+        
+        time.sleep(1)
+        
+        lcd2.print("Humidifier has been turned on!")
+        
+        time.sleep(1)
+        #TODO:SET TO OTHER COLOUR
+        lcd2.print("Checking Soil Moisture")
         #Run soilMoisture Module
         soilMoist(moist, username)
 
     else:
-        print("Air become wet")
+        lcd2.setRGB(0, 255, 0)
+        lcd2.print("The air is dry")
         #Off lights, haven't cross threshold
         digitalWrite(led_threshold, 0)
         # turn on heater
         digitalWrite(led_actuators, 1)
-        print("Heater has been turned on!")
-
+        lcd2.print("Heater has been turned on!")
+        time.sleep(1)
+        
+        #TODO: SET TO YELLOW
+        lcd2.setRGB(255, 255, 0)
+        lcd2.print("Checking Light Int!")
         #Run lightIntensity Module
         high = lightIntensity(light, username)
         
@@ -110,12 +126,14 @@ def soilMoist(moisture, username):
     moisture_threshold = threshold_dict['moisture']
     
     if moisture < moisture_threshold:
-        print("Low moisture")
+        lcd2.setRGB(0, 0, 255)
+        lcd2.print("Low moisture")
         #Tell user that there's low moisture level in soil
         digitalWrite(led_threshold, 1)
         waterLevel()
     else:
-        print("Enough moisture")
+        lcd2.setRGB(0, 0, 255)
+        lcd2.print("Enough moisture")
         digitalWrite(led_threshold, 0)
     
         
@@ -133,21 +151,23 @@ def lightIntensity(light, username):
     # yes > turn on relay(light shade), no > turn on led(light bulb)
 
     if light >= light_threshold:
-        print("High Light Intensity Detected!!")
+        lcd2.setRGB(255, 255, 0)
+        lcd2.print("High Light Intensity Detected!")
         digitalWrite(led_threshold, 1)
 
         # light bulb off, light shade on
         digitalWrite(led_actuators, 1)
         digitalWrite(relayForLight,1)
-        print("Light shade has been turned on!")
+        lcd2.print("Light shade has been turned on!")
     else:
-        print("Low Light Intensity Detected!!")
+        lcd2.setRGB(255, 255, 0)
+        lcd2.print("Low Light Intensity Detected!!")
         digitalWrite(led_threshold, 0)
 
          # # light bulb on, light shade off
         digitalWrite(led_actuators, 1)
         digitalWrite(relayForLight,0)
-        print("Light bulb has been turned on!")
+        lcd2.print("Light bulb has been turned on!")
 
     
 
@@ -159,7 +179,8 @@ def waterLevel():
     # if water level < 10, turn off relay(water pump) & light up led
     # waterSensor, 0 = got water, 1 = no water
     if (waterlvl == 1):
-        print("low water level, please refill water")
+        lcd2.setRGB(0, 0, 255)
+        lcd2.print("low water level, please refill water")
         # led on signifies that the water is insufficient
         digitalWrite(led_threshold, 1)
         # close relay as insufficient water
@@ -169,11 +190,12 @@ def waterLevel():
         digitalWrite(led_threshold, 0)
         #open relay for water pump
         digitalWrite(relay,1)
+        lcd2.setRGB(0, 0, 255)
+        lcd2.print("Pump is running!")
         # buzzer indicates watering plant
         grovepi.digitalWrite(buzzer,1)
         time.sleep(3)
         grovepi.digitalWrite(buzzer,0)
-
     time.sleep(1)
 
 
@@ -188,9 +210,12 @@ def threshold_read(username):
 def mainSys(username):
     cont = True
     while cont:
+        lcd2.setRGB(0, 255, 0)
+        lcd2.print("WELCOME")
         # Check if the stop button is pressed
         if digitalRead(buttonPin) == 1:
-            print("Stop button pressed. Exiting monitoring system.")
+            lcd2.setRGB(0, 255, 0)
+            lcd2.print("stopping system")
             cont = False
             continue  # Skip the rest of the loop and check the while condition
         
@@ -221,8 +246,8 @@ def mainSys(username):
         m = str(moist)
         
         #print on the LCD screen for real time display
-        setRGB(0, 255, 0)
-        setText("T=" + t + "\337" + "C   H=" +  h + "%" + "L=" + l + "  M=" + m)
+        lcd1.setRGB(0, 255, 0)
+        lcd1.setText("T=" + t + "\337" + "C   H=" +  h + "%" + "L=" + l + "  M=" + m)
         
 
         # Store sensor values into database
