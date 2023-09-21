@@ -41,7 +41,7 @@ userList = [collection.id for collection in db.collections()]
 
 # ------------------------------------------------------
 
-# List of sensors ===================================
+# List of sensors/actuators ===================================
 dhtSensor = 7          # D7
 lightSensor = 15       # A1
 moistureSensor = 16    # A2
@@ -50,6 +50,8 @@ led_threshold = 5      # D5
 led_actuators = 6      # D6
 relayForPump = 14      # A0
 relayForLight = 4      # D4
+#Add code here for button
+# kill_switch_butt = 
 
 
 pinMode(lightSensor, "INPUT")
@@ -60,6 +62,7 @@ pinMode(led_threshold, "OUTPUT")
 pinMode(led_actuators, "OUTPUT")
 pinMode(relayForPump, "OUTPUT")
 pinMode(relayForLight, "OUTPUT")
+# pinMode(kill_switch_butt, "INPUT")
 # ------------------------------------------------------
 
 
@@ -163,6 +166,12 @@ def threshold_read(username):
 def mainSys(username):
     cont = True
     while cont:
+        # Check if the stop button is pressed
+        if digitalRead(buttonPin) == 1:
+            print("Stop button pressed. Exiting monitoring system.")
+            cont = False
+            continue  # Skip the rest of the loop and check the while condition
+        
         # Get current datetime
         now = datetime.now()
         curr = now.strftime("%d-%m-%Y %H:%M:%S")
