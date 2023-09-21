@@ -82,17 +82,17 @@ def tempHum(temp, hum, moist, light, username):
 
     if ((temp >= temp_threshold) and (hum <= hum_threshold)):
         lcd2.setRGB(0, 255, 0)
-        lcd2.print("The air is dry")
         #To alert user that the threshold has been hit for the plant
         digitalWrite(led_threshold, 1)
-        time.sleep(1)
-        
+        lcd2.print("The air is dry")
+        time.sleep(1.5)
+        digitalWrite(led_threshold, 0)
         lcd2.print("Temp exceeded limit!")
         # turn on humidifier
         digitalWrite(led_actuators, 1)
-        
+        time.sleep(3)
+        digitalWrite(led_actuators, 0)
         time.sleep(1)
-        
         lcd2.print("Humidifier has been turned on!")
         
         time.sleep(1)
@@ -106,9 +106,12 @@ def tempHum(temp, hum, moist, light, username):
         lcd2.print("The air is dry")
         #Off lights, haven't cross threshold
         digitalWrite(led_threshold, 0)
+        
         # turn on heater
         digitalWrite(led_actuators, 1)
         lcd2.print("Heater has been turned on!")
+        time.sleep(3)
+        digitalWrite(led_actuators, 0)
         time.sleep(1)
         
         #TODO: SET TO YELLOW
@@ -130,6 +133,8 @@ def soilMoist(moisture, username):
         lcd2.print("Low moisture")
         #Tell user that there's low moisture level in soil
         digitalWrite(led_threshold, 1)
+        time.sleep(1.5)
+        digitalWrite(led_threshold, 0)
         waterLevel()
     else:
         lcd2.setRGB(0, 0, 255)
@@ -154,10 +159,16 @@ def lightIntensity(light, username):
         lcd2.setRGB(255, 255, 0)
         lcd2.print("High Light Intensity Detected!")
         digitalWrite(led_threshold, 1)
+        time.sleep(1.5)
+        digitalWrite(led_threshold, 0)
 
         # light bulb off, light shade on
         digitalWrite(led_actuators, 1)
+        time.sleep(3)
+        digitalWrite(led_actuators, 0)
         digitalWrite(relayForLight,1)
+        time.sleep(3)
+        digitalWrite(relayForLight,0)
         lcd2.print("Light shade has been turned on!")
     else:
         lcd2.setRGB(255, 255, 0)
@@ -166,6 +177,8 @@ def lightIntensity(light, username):
 
          # # light bulb on, light shade off
         digitalWrite(led_actuators, 1)
+        time.sleep(3)
+        digitalWrite(led_actuators, 0)
         digitalWrite(relayForLight,0)
         lcd2.print("Light bulb has been turned on!")
 
@@ -183,6 +196,8 @@ def waterLevel():
         lcd2.print("low water level, please refill water")
         # led on signifies that the water is insufficient
         digitalWrite(led_threshold, 1)
+        time.sleep(1.5)
+        digitalWrite(led_threshold, 0)
         # close relay as insufficient water
         digitalWrite(relay,0)
     else:
